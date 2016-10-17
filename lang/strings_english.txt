@@ -1,0 +1,16 @@
+<?php
+
+$s_plugin_taskmantis_title = 'Task Mantis';
+$s_plugin_taskmantis_description = 'Add Task management to mantis';
+$s_plugin_taskmantis_board = 'My Sheet';
+$s_plugin_taskmantis_tasks = 'Tasks';
+$s_plugin_taskmantis_duration = 'Duration';
+$s_plugin_taskmantis_due_date = 'Due Date';
+$s_plugin_taskmantis_parent_task = 'Parent Task';
+$s_plugin_taskmantis_child_task = 'Child Task(s)';
+$s_plugin_taskmantis_select_parent_task = 'Select Parent Task';
+$s_plugin_taskmantis_select_empty_option = 'Select';
+$s_plugin_taskmantis_timein_m = 'Minute(s)';
+$s_plugin_taskmantis_timein_h = 'Hour(s)';
+
+
