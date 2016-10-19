@@ -19,8 +19,9 @@ function get_bug_list() {
         $bugs_array[$key]['date_created'] = date('m/d/Y', $value->date_submitted);
         $bugs_array[$key]['last_updated'] = date('m/d/Y', $value->last_updated);
         $bugs_array[$key]['task_name'] = $value->summary;
-        $bugs_array[$key]['task_completion_date'] = $value->due_date;
-        $bugs_array[$key]['task_start_date'] = $value->due_date;
+        $bugs_array[$key]['task_completion_date'] = date('m/d/Y',
+                $value->due_date);
+        $bugs_array[$key]['task_start_date'] = date('m/d/Y', $value->due_date);
         $bugs_array[$key]['description'] = $value->description;
     }
     return $bugs_array;
@@ -59,13 +60,14 @@ function get_all_tasks_by_projectId($p_project_id) {
 
 }
 
-function create_task($c_task_id, $reporter_id, $assigned_id, $due_date, $parent_task_id, $duration, $duration_in_min, $info = '', $duration_type = 'm') {
+function create_task($c_task_id, $reporter_id, $assigned_id, $due_date, $parent_task_id, $duration, $duration_in_min, $issue_type, $info = '', $duration_type = 'm') {
 
     $t_query = 'INSERT INTO ' . plugin_table('tasks') . '
 						( task_id, reporter_id, assigned_id, due_date, parent_task_id,
-                                                duration, duration_type, duration_in_min, percentage_of_completion,last_updated,date_created,info )
+                                                duration, duration_type, duration_in_min, percentage_of_completion,issue_type,last_updated,date_created,info )
 					  VALUES
 						( '
+            . db_param() . ', '
             . db_param() . ', '
             . db_param() . ', '
             . db_param() . ', '
@@ -82,7 +84,7 @@ function create_task($c_task_id, $reporter_id, $assigned_id, $due_date, $parent_
             array(
         $c_task_id, $reporter_id, $assigned_id, $due_date,
         $parent_task_id,
-        $duration, $duration_type, $duration_in_min,
+        $duration, $duration_type, $duration_in_min, $issue_type,
         $info));
     # Recall the query, we want the filter ID
     db_param_push();
@@ -100,7 +102,7 @@ function create_task($c_task_id, $reporter_id, $assigned_id, $due_date, $parent_
 
 function get_task_by_id($task_id) {
     $t_query = 'SELECT t.*,mb.summary
-						FROM ' . plugin_table('tasks') . ' t Join mantis_bug_table mb on mb.id=t.task_id
+						FROM ' . plugin_table('tasks') . ' t Join ' . db_get_table('bug') . ' mb on mb.id=t.task_id
 						WHERE task_id=' . db_param();
     $t_result = db_query($t_query, array($task_id));
     if ($t_row = db_fetch_array($t_result)) {
@@ -110,9 +112,21 @@ function get_task_by_id($task_id) {
 
 }
 
+function get_task_by_projectid($project_id) {
+    $t_query = 'SELECT t.*,mb.summary
+						FROM ' . plugin_table('tasks') . ' t left Join ' . db_get_table('bug') . ' mb on mb.id=t.task_id
+						WHERE project_id=' . db_param();
+    $t_result = db_query($t_query, array($project_id));
+    if ($t_row = db_fetch_array($t_result)) {
+        return $t_row;
+    }
+    return -1;
+
+}
+
 function get_child_tasks($parent_id) {
     $t_query = 'SELECT *
-						FROM ' . plugin_table('tasks') . ' t Join mantis_bug_table mb on mb.id=t.task_id
+						FROM ' . plugin_table('tasks') . ' t Join ' . db_get_table('bug') . ' mb on mb.id=t.task_id
 						WHERE parent_task_id=' . db_param();
     $t_result = db_query($t_query, array($parent_id));
     $t_child = [];

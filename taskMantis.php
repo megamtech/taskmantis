@@ -41,6 +41,7 @@ class taskMantisPlugin extends MantisPlugin {
             'EVENT_LAYOUT_RESOURCES' => 'resources',
             'EVENT_REPORT_BUG_FORM' => 'report_bug_form',
             'EVENT_REPORT_BUG' => 'report_bug',
+            'EVENT_FILTER_COLUMNS' => 'check_fn',
             'EVENT_UPDATE_BUG_FORM' => 'update_bug_form',
             'EVENT_UPDATE_BUG' => 'update_bug',
             'EVENT_VIEW_BUG_DETAILS' => 'view_bug_details',
@@ -54,6 +55,11 @@ class taskMantisPlugin extends MantisPlugin {
             'EVENT_MENU_SUMMARY' => 'view_timecard',
             'EVENT_FILTER_COLUMNS' => 'add_columns'
         );
+
+    }
+
+    function check_fn() {
+        return array(1, 2);
 
     }
 
@@ -120,7 +126,14 @@ class taskMantisPlugin extends MantisPlugin {
             ),
             "cooldown_period_days" => 14,
             "cooldown_period_hours" => 0,
-            'estimate_threshold' => DEVELOPER
+            'estimate_threshold' => DEVELOPER,
+            'issue_types' => array(
+                1 => 'Bug',
+                2 => 'Improvement',
+                3 => 'New Feature',
+                4 => 'Task',
+                5 => 'Custom Issue'
+            )
         );
 
     }
@@ -149,6 +162,7 @@ class taskMantisPlugin extends MantisPlugin {
         $p_taskmantis_duration = gpc_get_string('plugin_taskmantis_duration');
         $p_taskmantis_duration_type = gpc_get_string('plugin_taskmantis_duration_type');
         $p_taskmantis_parent_task = gpc_get_string('plugin_taskmantis_parent_task');
+        $p_taskmantis_issue_type = gpc_get_string('plugin_taskmantis_issue_types');
         $task_id = $p_task_details->id;
         $reporter_id = $p_task_details->reporter_id;
         $assigned_id = $p_task_details->handler_id;
@@ -162,7 +176,7 @@ class taskMantisPlugin extends MantisPlugin {
                 $p_task_details->reporter_id, $p_task_details->handler_id,
                 $p_taskmantis_duedate, $p_taskmantis_parent_task,
                 $p_taskmantis_duration, $p_taskmantis_duration_in_min, $info,
-                $p_taskmantis_duration_type);
+                $p_taskmantis_duration_type, $p_taskmantis_issue_type);
 
     }
 
@@ -175,6 +189,17 @@ class taskMantisPlugin extends MantisPlugin {
 
         if (access_has_project_level(plugin_config_get('estimate_threshold'),
                         $p_project_id)) {
+//            echo '<tr ', helper_alternate_class(), '>'
+//            . '<td class="category">', plugin_lang_get('issue_type'),
+//            '</td>'
+//            . '<td>'
+//            . '<select name="plugin_taskmantis_issue_type" class="col-sm-2">';
+//            foreach (plugin_config_get('issue_types') as $key => $value) {
+//                echo '<option value="' . $key . '">' . $value . '</option>';
+//            }
+//            echo '</select>'
+//            . '</td>'
+//            . '</tr>';
             echo '<tr ', helper_alternate_class(), '>'
             . '<td class="category">', plugin_lang_get('parent_task'),
             '</td>'
@@ -192,12 +217,12 @@ class taskMantisPlugin extends MantisPlugin {
             . '<td>'
             . '<input  class="datepicker col-sm-4" readonly name="plugin_taskmantis_duedate" size="8" type="text"/>'
             . '<script>$(".datepicker").datepicker({
-    format: "dd MM yyyy",
-    autoclose:true,
-    daysOfWeekHighlighted:[1,2,3,4,5],
-    todayBtn:true,
-    startDate: "-3d"
-});</script>'
+                    format: "dd MM yyyy",
+                    autoclose:true,
+                    daysOfWeekHighlighted:[1,2,3,4,5],
+                    todayBtn:true,
+                    startDate: "-3d"
+              });</script>'
             . '</td></tr>';
 
 
@@ -223,27 +248,21 @@ class taskMantisPlugin extends MantisPlugin {
 
     }
 
-    function plugin_callback_taskmantis_uninstall() {
+    function uninstall() {
+        $t_query = 'Drop Table IF Exists ' . plugin_table('tasks');
+        $t_result = db_query($t_query, array());
 
     }
 
     function schema() {
-        /*
-         *   `id` int(11) NOT NULL,
-          `task_id` int(11) NOT NULL,
-          `due_date` int(11) NOT NULL,
-          `duration` int(11) NOT NULL,
-          `duration_type` char(1) NOT NULL,
-          `duration_in_min` int(11) NOT NULL,
-          `date_created` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
-          `last_updated` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
-         */
+
 
         return array(
-            array('CreateTableSQL', array(plugin_table('tasks'), "
-				id                 I       NOTNULL AUTOINCREMENT PRIMARY,
-				task_id             I       NOTNULL ,
-				reporter_id               I       NOTNULL ,
+            array('CreateTableSQL',
+                array(plugin_table('tasks'), "
+				id			I       NOTNULL AUTOINCREMENT PRIMARY,
+				task_id			I       NOTNULL ,
+				reporter_id			I       NOTNULL ,
 				assigned_id               I       NOTNULL ,
 				due_date    T       NOTNULL,
 				parent_task_id              I DEFAULT 0 NOTNULL,
@@ -254,8 +273,17 @@ class taskMantisPlugin extends MantisPlugin {
 				date_created          T       DEFAULT NULL,
 				last_updated          T       DEFAULT NULL,
 				info               C(255)  DEFAULT NULL
-				")
+				", array("mysql" => "ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin")
+                )
             ),
+            array('CreateTableSQL',
+                array(plugin_table('tasks'), "
+                    user_id			I			NOTNULL UNSIGNED PRIMARY,
+                    developer		L			NOTNULL DEFAULT '0',
+                    participant 	L			NOTNULL DEFAULT '0',
+                    administrator 	L			NOTNULL DEFAULT '0'
+                    ",
+                    array("mysql" => "ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin"))),
         );
 
     }

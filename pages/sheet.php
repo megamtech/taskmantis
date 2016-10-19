@@ -1,59 +1,30 @@
 <?php
 
 require_once( 'core.php' );
-layout_page_header();
-
-function get_bug_list() {
-//    require_once( 'core.php' );
-    require_api('filter_api.php');
-    $f_page_number = gpc_get_int('page_number', 1);
-    $t_per_page = null;
-    $t_bug_count = null;
-    $t_page_count = null;
-    $bugs = filter_get_bug_rows($f_page_number, $t_per_page, $t_page_count,
-            $t_bug_count, null, null, null, true);
-    foreach ((array) $bugs as $key => $value) {
-        $bugs_array[$key]['id'] = $value->id;
-        $bugs_array[$key]['project_id'] = $value->project_id;
-        $bugs_array[$key]['reporter_id'] = $value->reporter_id;
-        $bugs_array[$key]['priority'] = $value->priority;
-        $bugs_array[$key]['severity'] = $value->severity;
-        $bugs_array[$key]['status'] = $value->status;
-        $bugs_array[$key]['date_created'] = date('m/d/Y', $value->date_submitted);
-        $bugs_array[$key]['last_updated'] = date('m/d/Y', $value->last_updated);
-        $bugs_array[$key]['task_name'] = $value->summary;
-        $bugs_array[$key]['task_completion_date'] = $value->due_date;
-        $bugs_array[$key]['task_start_date'] = $value->due_date;
-        $bugs_array[$key]['description'] = $value->description;
-    }
-    return $bugs_array;
-
-}
-
-function get_statuses() {
-    $statuses = MantisEnum::getAssocArrayIndexedByValues(config_get('status_enum_string'));
-    $result = array();
-    foreach ($statuses as $key => $value) {
-        $result[] = array('id' => $key, 'label' => $value);
-    }
-    return $result;
-
-}
-
-function get_all_user() {
-    $t_query = 'SELECT id,username as label,realname,email FROM {user} where enabled=1';
-    $t_result = db_query($t_query);
-    $t_users = array();
-    while ($t_row = db_fetch_array($t_result)) {
-        $t_users[] = $t_row;
-    }
-    return $t_users;
-
-}
+layout_page_header_begin("Smart Sheet - Mantis");
+compress_enable();
+html_robots_noindex();
+layout_page_header_end();
 
 get_all_user();
 
+
+
+
+auth_ensure_user_authenticated();
+# Get Project Id and set it as current
+$t_project_id = gpc_get_int('project_id', helper_get_current_project());
+if (( ALL_PROJECTS == $t_project_id || project_exists($t_project_id) ) && $t_project_id != helper_get_current_project()) {
+    helper_set_current_project($t_project_id);
+    # Reloading the page is required so that the project browser
+    # reflects the new current project
+    print_header_redirect($_SERVER['REQUEST_URI'], true, false, true);
+}
 layout_page_begin();
+
+//layout_page_header_begin(lang_get('view_bugs_link'));
+//layout_page_header_end();
+//layout_page_begin(__FILE__);
 
 ?>
 <?php html_javascript_link('handsontable.full.min.js'); ?>
@@ -61,7 +32,12 @@ layout_page_begin();
 <?php html_javascript_link('handsontable-chosen-editor.js'); ?>
 <?php html_javascript_link('script.js'); ?>
 <?php html_css_link('handsontable.full.min.css'); ?>
-<?php html_css_link('chosen.css'); ?>
+<?php
+
+html_css_link('chosen.css');
+$t_project_id = gpc_get_int('project_id', helper_get_current_project());
+
+?>
 
 <div id="tasks"></div>
 <script>
@@ -69,11 +45,13 @@ layout_page_begin();
 
     var tasksElement = document.querySelector('#tasks');
     var tasksSettings = {
-        data:<?php echo json_encode(get_bug_list(), true); ?>,
+        data:<?php echo json_encode(get_task_by_projectid($t_project_id), true); ?>,
         columns: [
             {
                 data: 'id',
-                type: 'text',
+                renderer: htmlTaskLinkRenderer,
+                readOnly: true,
+//                type: 'text',
                 width: 40
             },
             {
@@ -91,7 +69,7 @@ layout_page_begin();
                 dateFormat: 'MM/DD/YYYY',
             },
             {
-                data: 'task_completion_date',
+                data: 'task_start_date',
                 type: 'date',
                 dateFormat: 'MM/DD/YYYY',
             },
@@ -152,12 +130,15 @@ echo json_encode(get_statuses(), true);
         ],
         filters: true,
         stretchH: 'all',
+        minSpareRows: 1,
         columnSorting: true,
         manualColumnResize: true,
         autoWrapRow: true,
-        rowHeaders: true,
         sortIndicator: true,
-        contextMenu: true,
+        contextMenu: ['row_above', 'row_below', 'remove_row', 'undo', 'redo', 'alignment', 'borders', 'commentsAddEdit', 'commentsRemove '],
+        customBorders: true,
+        comments: true,
+        rowHeaders: false,
         colHeaders: [
             'ID',
             'Task Name',
@@ -175,6 +156,13 @@ echo json_encode(get_statuses(), true);
         ]
     };
     var tasks = new Handsontable(tasksElement, tasksSettings);
+    function htmlTaskLinkRenderer(instance, td, row, col, prop, value, cellProperties) {
+        var escaped = Handsontable.helper.stringify(value);
+//        escaped = strip_tags(escaped, '<em><b><strong><a><big>'); //be sure you only allow certain HTML tags to avoid XSS threats (you should also remove unwanted HTML attributes)
+        td.innerHTML = '<?php echo '<a target="_blank" href="' . config_get_global('path') . 'view.php?id='; ?>' + escaped + '">' + escaped + '</a>';
+
+        return td;
+    }
     function customDropdownRenderer(instance, td, row, col, prop, value, cellProperties) {
         var selectedId;
         var optionsList = cellProperties.chosenOptions.data;
@@ -194,3 +182,8 @@ echo json_encode(get_statuses(), true);
 
 
 </script>
+<?php
+
+layout_page_end();
+
+?>
